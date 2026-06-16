@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Responsibilities</title>
+<style>
+  :root{
+    --amber:#EF9F27; --amber-d:#C77F12; --amber-l:#F6C266;
+    --bg:#0E0D0B; --surface:#17150F; --surface-2:#1F1C16;
+    --border:#2A2620; --text:#F4EFE6; --muted:#B8AF9E; --dim:#6E665A;
+    --green:#1D9E75; --red:#D4537E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg); color:var(--text); padding:16px; min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto;}
+
+  /* header */
+  .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .date{font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;}
+  .due{font-size:13px; color:var(--amber); font-weight:600;}
+
+  /* tabs */
+  .tabs{display:flex; gap:8px; margin:14px 0;}
+  .tab{
+    flex:1; padding:12px; border:1px solid var(--border); border-radius:14px;
+    background:var(--surface); color:var(--muted); font-size:16px; font-weight:600;
+    text-align:center; cursor:pointer; transition:.15s; text-transform:uppercase; letter-spacing:.5px;
+  }
+  .tab.active{background:var(--amber); color:var(--bg); border-color:var(--amber);}
+
+  /* status banner */
+  .status{
+    border-radius:16px; padding:18px; margin-bottom:16px; text-align:center;
+    border:1px solid var(--border); transition:.3s;
+  }
+  .status.locked{background:rgba(212,83,126,.12); border-color:var(--red);}
+  .status.unlocked{background:rgba(29,158,117,.12); border-color:var(--green);}
+  .status .big{font-size:22px; font-weight:700; letter-spacing:.5px;}
+  .status.locked .big{color:var(--red);}
+  .status.unlocked .big{color:var(--green);}
+  .status .sub{font-size:13px; color:var(--muted); margin-top:4px;}
+  .progress{height:6px; background:var(--surface-2); border-radius:3px; margin-top:12px; overflow:hidden;}
+  .progress > div{height:100%; background:var(--amber); width:0%; transition:width .3s;}
+
+  /* section labels */
+  .section{font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--dim);
+    margin:18px 0 8px 4px; font-weight:700;}
+  .warn{color:var(--red);}
+
+  /* task */
+  .task{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    margin-bottom:8px; overflow:hidden;
+  }
+  .task-row{display:flex; align-items:center; padding:14px; cursor:pointer; gap:12px;}
+  .check{
+    width:26px; height:26px; border-radius:8px; border:2px solid var(--dim);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:16px; color:var(--bg); transition:.15s;
+  }
+  .task.done .check{background:var(--amber); border-color:var(--amber);}
+  .task-label{flex:1; font-size:16px;}
+  .task.done .task-label{color:var(--dim); text-decoration:line-through;}
+  .expand{color:var(--dim); font-size:13px; padding:4px;}
+  .badge{font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:var(--amber-l);
+    border:1px solid var(--amber-d); border-radius:6px; padding:2px 6px;}
+  .substeps{
+    display:none; padding:0 14px 14px 52px; font-size:14px; color:var(--muted); line-height:1.7;
+  }
+  .substeps.show{display:block;}
+  .substeps li{margin-left:16px;}
+
+  .footer{text-align:center; color:var(--dim); font-size:12px; margin-top:22px; line-height:1.6;}
+  .reset-btn{background:none; border:1px solid var(--border); color:var(--dim);
+    border-radius:10px; padding:8px 14px; font-size:12px; cursor:pointer; margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="date" id="date"></span>
+    <span class="due">DUE 6:30 PM</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-kid="griffin" onclick="switchKid('griffin')">Griffin</div>
+    <div class="tab" data-kid="taylor" onclick="switchKid('taylor')">Taylor</div>
+  </div>
+
+  <div class="status locked" id="status">
+    <div class="big" id="statusBig">SCREEN TIME LOCKED</div>
+    <div class="sub" id="statusSub">Finish all responsibilities to unlock</div>
+    <div class="progress"><div id="progressBar"></div></div>
+  </div>
+
+  <div id="tasks"></div>
+
+  <div class="footer">
+    Respect is a daily responsibility.<br>
+    9:30 PM is for winding down — no loud noises.
+    <br><button class="reset-btn" onclick="resetDay()">Reset today's checks</button>
+  </div>
+</div>
+
+<script>
+// ---------- shared task descriptions ----------
+const DESC = {
+  "reset room":["make bed","dirty laundry and shoes picked up","clean laundry put away","desk cleared","dishes taken to sink","wrappers from food thrown away"],
+  "feed dogs & refill water bowl":["fill food bowls","refill dogs water bowl","clean bowls as needed"],
+  "dishes":["cleaning the countertops and stove","clearing the table after dinner","rinsing and loading the dishes","handwashing dishes as needed","refilling soap as needed","clean scrub brush before putting it back","removing all food scraps"],
+  "clean back bathroom (biweekly)":["wipe down counter and anything on counter","clean sink","clean mirror","scrub toilet with brush","wipe down toilet with separate rag","empty trash","sweep floors"],
+  "clean front bathroom (biweekly)":["wipe down counter and anything on counter","clean sink","clean mirror","scrub toilet with brush","wipe down toilet with separate rag","empty trash","sweep floors"],
+  "sort laundry (w/d/c)":["emptying pockets","sorting by color","turning all items right side out","running wash load","drying load on rack or dryer ASAP"],
+  "dark load, wash, dry, put away":["emptying pockets","sorting by color","turning all items right side out","running wash load","drying load on rack or dryer ASAP"],
+  "jeans load, wash, dry, put away":["emptying pockets","sorting by color","turning all items right side out","running wash load","drying load on rack or dryer ASAP"],
+  "dog poop":["picking up poop from grass and rocks","bagging poop in plastic bag","taking plastic bag to trash"],
+  "vacuum house (biweekly)":["sweep corner & areas that cannot be vacuumed","empty vacuum bin every time"]
+};
+
+// ---------- schedules ----------
+// day index: 0=Sun 1=Mon ... 6=Sat
+const KIDS = {
+  griffin:{
+    morning:["brush teeth","feed dogs & refill water bowl","reset room"],
+    anytime:["empty all trash cans into main trash & take out trash","30 min physical activity & 30 min mental activity","30 min schoolwork"],
+    evening:["floss & brush teeth by 9:30pm"],
+    weekly:{
+      0:["dog poop","thorough room clean"],
+      1:["dog poop","dishes"],
+      2:["dog poop","dishes"],
+      3:["vacuum house (biweekly)"],
+      4:[],
+      5:["brush & bathe Olive (white towel)","sort laundry (w/d/c)","dark load, wash, dry, put away","clean back bathroom (biweekly)"],
+      6:["put laundry away"]
+    }
+  },
+  taylor:{
+    morning:["brush teeth","ice trays","reset room"],
+    anytime:["empty recycling even if only half-full"],
+    evening:["floss & brush teeth by 9:30pm"],
+    weekly:{
+      0:["dishes","wash dog water bowl"],
+      1:["recycle bin to curb","sweep and mop kitchen"],
+      2:["retrieve recycle bin from curb","check household supplies (tp, pt, soap)"],
+      3:[],
+      4:["dog poop","dishes","wash dog water bowl"],
+      5:["dog poop","dishes","jeans load, wash, dry, put away","clean front bathroom (biweekly)"],
+      6:["dishes","water ALL plants, indoor and outdoor","dog poop","put laundry away"]
+    }
+  }
+};
+
+let currentKid = "griffin";
+const todayKey = new Date().toISOString().slice(0,10);
+const dow = new Date().getDay();
+
+function storeKey(kid){return `resp_${kid}_${todayKey}`;}
+function loadState(kid){ try{return JSON.parse(localStorage.getItem(storeKey(kid)))||{};}catch(e){return {};} }
+function saveState(kid,st){ localStorage.setItem(storeKey(kid),JSON.stringify(st)); }
+
+function buildTasks(kid){
+  const k = KIDS[kid];
+  const groups = [
+    {label:"Morning — do not skip!!!", cls:"warn", items:k.morning},
+    {label:"During the day", cls:"", items:k.anytime},
+    {label:"Today's weekly tasks", cls:"", items:k.weekly[dow]},
+    {label:"Evening", cls:"", items:k.evening}
+  ];
+  return groups.filter(g=>g.items && g.items.length);
+}
+
+function render(){
+  const kid = currentKid;
+  const groups = buildTasks(kid);
+  const st = loadState(kid);
+  const el = document.getElementById('tasks');
+  el.innerHTML = '';
+  let total=0, done=0;
+
+  groups.forEach(g=>{
+    const lbl = document.createElement('div');
+    lbl.className = 'section '+g.cls;
+    lbl.textContent = g.label;
+    el.appendChild(lbl);
+
+    g.items.forEach(item=>{
+      total++;
+      const isDone = !!st[item];
+      if(isDone) done++;
+      const hasDesc = DESC[item];
+      const biweek = /biweekly/i.test(item);
+
+      const task = document.createElement('div');
+      task.className = 'task'+(isDone?' done':'');
+
+      const row = document.createElement('div');
+      row.className='task-row';
+      row.onclick = ()=>toggle(item);
+
+      const chk = document.createElement('div');
+      chk.className='check';
+      chk.textContent = isDone?'✓':'';
+      row.appendChild(chk);
+
+      const label = document.createElement('div');
+      label.className='task-label';
+      label.textContent = item.replace(' (biweekly)','');
+      row.appendChild(label);
+
+      if(biweek){
+        const b=document.createElement('span'); b.className='badge'; b.textContent='biweekly'; row.appendChild(b);
+      }
+      if(hasDesc){
+        const ex=document.createElement('span'); ex.className='expand'; ex.textContent='ⓘ';
+        ex.onclick=(e)=>{e.stopPropagation(); const s=task.querySelector('.substeps'); s.classList.toggle('show');};
+        row.appendChild(ex);
+      }
+      task.appendChild(row);
+
+      if(hasDesc){
+        const sub=document.createElement('ul');
+        sub.className='substeps';
+        DESC[item].forEach(d=>{const li=document.createElement('li'); li.textContent=d; sub.appendChild(li);});
+        task.appendChild(sub);
+      }
+      el.appendChild(task);
+    });
+  });
+
+  // status
+  const pct = total? Math.round(done/total*100):0;
+  document.getElementById('progressBar').style.width = pct+'%';
+  const status = document.getElementById('status');
+  const allDone = total>0 && done===total;
+  status.className = 'status '+(allDone?'unlocked':'locked');
+  document.getElementById('statusBig').textContent = allDone?'SCREEN TIME UNLOCKED':'SCREEN TIME LOCKED';
+  document.getElementById('statusSub').textContent = allDone
+    ? 'All responsibilities complete. Nice work!'
+    : `${done} of ${total} done — finish all to unlock`;
+}
+
+function toggle(item){
+  const st = loadState(currentKid);
+  st[item] = !st[item];
+  if(!st[item]) delete st[item];
+  saveState(currentKid, st);
+  render();
+}
+
+function switchKid(kid){
+  currentKid = kid;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.kid===kid));
+  render();
+}
+
+function resetDay(){
+  if(confirm("Clear today's checkmarks for "+currentKid+"?")){
+    localStorage.removeItem(storeKey(currentKid));
+    render();
+  }
+}
+
+// date header
+const opts={weekday:'long', month:'long', day:'numeric'};
+document.getElementById('date').textContent = new Date().toLocaleDateString('en-US',opts);
+
+render();
+</script>
+</body>
+</html>
